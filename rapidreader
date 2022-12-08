@@ -1,0 +1,130 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+"""
+Search for Japanese words for flashcards crazy fast.
+"""
+
+import curses
+import os
+from jisho_api.word import Word
+
+from subprocess import Popen, PIPE
+
+class RapidReader():
+    def __init__(self) -> None:
+        self.buffer = ""
+        self._actionCount = 1
+        self.line = ""
+        self.escape = True
+        self.mode = "escape"
+        os.environ.setdefault('ESCDELAY', '0')
+        self.keyBindings = {
+            "A": self.lineAppendMode,
+            "": self.escapeMode,
+            "y": self.yankMode,
+            "l": self.leftMovement,
+            "x": self.deleteCharacters,
+            "p": self.paste,
+        }
+
+    def handleKey(self, key: str):
+        if key == "":
+            self.keyBindings[key]()
+        elif self.escape:
+            if key in self.keyBindings:
+                self.keyBindings[key]()
+            elif 48 <= ord(key) <= 57:
+                self.actionCountAdd(int(key))
+        else:
+            self.line = self.line + key
+            self.window.clrtoeol()
+            self.window.addstr(self.line)
+
+        self.printMode()
+
+    def actionCountAdd(self, count):
+        self._actionCount = count
+
+    def searchBuffer(self):
+        if self.buffer == "":
+            return
+        lines = []
+        for word in Word.request(self.buffer).data:
+            if word.slug == self.buffer:
+                lines.append(self.buffer)
+                lines.append(", ".join([ japanese.reading for japanese in word.japanese if japanese.word == self.buffer ]))
+                for sense in word.senses:
+                    if sense.parts_of_speech[0] !=  "Wikipedia definition":
+                        lines.append("; ".join([ english for english in sense.english_definitions ]))
+
+        lineOffset = 3
+        for line in lines:
+            self.window.move(lineOffset,0)
+            self.window.addstr(line)
+            lineOffset += 1
+
+        p = Popen(["ssh", "macbook", "LANG=en_US.UTF-8 pbcopy"], stdout=PIPE, stdin=PIPE, stderr=PIPE)
+        p.communicate(input="\n".join(lines).encode())
+
+        p = Popen(["ssh", "macbook", "open", "https://www.google.com/search?tbm=isch\\&q=%s" % self.buffer], stdout=PIPE, stdin=PIPE, stderr=PIPE)
+        p.communicate(input="\n".join(lines).encode())
+
+        self.window.move(0,0)
+
+    def printMode(self):
+        self.window.move(self.rows-1, 0)
+        self.window.clrtoeol()
+        self.window.addstr("== %s (%d) ==: |%s|" % (self.mode, self._actionCount, self.buffer))
+        self.window.move(0, 0)
+
+    def actionCount(self):
+        oldActionCount = self._actionCount
+        self._actionCount = 1
+        return oldActionCount
+
+    def paste(self):
+        self.searchBuffer()
+
+    def deleteCharacters(self):
+        actionCount = self.actionCount()
+        self.buffer = self.line[:actionCount]
+        self.line = self.line[actionCount:]
+        self.window.clrtoeol()
+        self.window.addstr(self.line)
+
+    def leftMovement(self):
+        if self.mode == "yank":
+            self.buffer = self.line[0:self.actionCount()]
+
+        self.mode = "escape"
+
+    def yankMode(self):
+        self.mode = "yank"
+
+    def escapeMode(self):
+        self._actionCount = 1
+        self.mode = "escape"
+        self.escape = True
+
+    def lineAppendMode(self):
+        self.mode = "line append"
+        self.escape = False
+
+        # XXX numbers.
+        # XXX yank
+        # XXX delete
+
+    def handle(self, window):
+        self.rows, _ = window.getmaxyx()
+        self.window = window
+        self.printMode()
+        while True:
+            window.addstr(self.line)
+            window.move(0,0)
+            try:
+                self.handleKey(window.get_wch())
+            except Exception as e:
+                pass
+
+if __name__ == "__main__":
+    curses.wrapper(RapidReader().handle)
