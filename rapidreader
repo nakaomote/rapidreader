@@ -35,10 +35,8 @@ class RapidReader():
                 self.keyBindings[key]()
             elif 48 <= ord(key) <= 57:
                 self.actionCountAdd(int(key))
-        else:
+        elif key != "\n":
             self.line = self.line + key
-            self.window.clrtoeol()
-            self.window.addstr(self.line)
 
         self.printMode()
 
@@ -60,6 +58,7 @@ class RapidReader():
         lineOffset = 3
         for line in lines:
             self.window.move(lineOffset,0)
+            self.window.clrtoeol()
             self.window.addstr(line)
             lineOffset += 1
 
@@ -85,12 +84,15 @@ class RapidReader():
     def paste(self):
         self.searchBuffer()
 
+    def printLines(self):
+        self.window.clrtoeol()
+        self.window.addstr(self.line[:self.columns])
+
     def deleteCharacters(self):
         actionCount = self.actionCount()
         self.buffer = self.line[:actionCount]
         self.line = self.line[actionCount:]
-        self.window.clrtoeol()
-        self.window.addstr(self.line)
+        self.printLines()
 
     def leftMovement(self):
         if self.mode == "yank":
@@ -115,11 +117,11 @@ class RapidReader():
         # XXX delete
 
     def handle(self, window):
-        self.rows, _ = window.getmaxyx()
+        self.rows, self.columns = window.getmaxyx()
         self.window = window
         self.printMode()
         while True:
-            window.addstr(self.line)
+            self.printLines()
             window.move(0,0)
             try:
                 self.handleKey(window.get_wch())
