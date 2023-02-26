@@ -1,0 +1,26 @@
+{
+    "Darwin": {
+        "copy": [
+            "ssh",
+            "macbook",
+            "LANG=en_US.UTF-8 pbcopy"
+        ],
+        "open": [
+            "ssh",
+            "macbook",
+            "open \"https://www.google.com/search?tbm=isch&q=%s\""
+        ]
+    },
+    "Linux": {
+        "copy": [
+            "ssh",
+            "hollyhock",
+            "DISPLAY=:0 xsel --clipboard --input"
+        ],
+        "open": [
+            "ssh",
+            "hollyhock",
+            "DISPLAY=:0 open \"https://www.google.com/search?tbm=isch&q=%s\""
+        ]
+    }
+}

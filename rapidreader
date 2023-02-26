@@ -6,12 +6,20 @@ Search for Japanese words for flashcards crazy fast.
 
 import curses
 import os
+import json
+import platform
 from jisho_api.word import Word
 
 from subprocess import Popen, PIPE
 
 class RapidReader():
     def __init__(self) -> None:
+
+        with open("config.json", "r") as config:
+            self.config = json.load(config)[platform.uname().system]
+
+        print(self.config)
+
         self.buffer = ""
         self._actionCount = 1
         self.line = ""
@@ -62,10 +70,15 @@ class RapidReader():
             self.window.addstr(line)
             lineOffset += 1
 
-        p = Popen(["ssh", "macbook", "LANG=en_US.UTF-8 pbcopy"], stdout=PIPE, stdin=PIPE, stderr=PIPE)
+        p = Popen(self.config["copy"], stdout=PIPE, stdin=PIPE, stderr=PIPE)
         p.communicate(input="\n".join(lines).encode())
 
-        p = Popen(["ssh", "macbook", "open", "https://www.google.com/search?tbm=isch\\&q=%s" % self.buffer], stdout=PIPE, stdin=PIPE, stderr=PIPE)
+        p = Popen(
+            list(map(lambda x: x % self.buffer if "%s" in x else x, self.config["open"])),
+            stdout=PIPE,
+            stdin=PIPE,
+            stderr=PIPE
+        )
         p.communicate(input="\n".join(lines).encode())
 
         self.window.move(0,0)
