@@ -6,14 +6,17 @@ Search for Japanese words for flashcards crazy fast.
 
 import curses
 import os
+import sys
+import time
 import json
 import platform
+import pyautogui
 from jisho_api.word import Word
 
 from subprocess import Popen, PIPE
 
 class RapidReader():
-    def __init__(self) -> None:
+    def __init__(self, buffer) -> None:
 
         with open("config.json", "r") as config:
             self.config = json.load(config)[platform.uname().system]
@@ -22,7 +25,7 @@ class RapidReader():
 
         self.buffer = ""
         self._actionCount = 1
-        self.line = ""
+        self.line = buffer
         self.escape = True
         self.mode = "escape"
         os.environ.setdefault('ESCDELAY', '0')
@@ -52,6 +55,7 @@ class RapidReader():
         self._actionCount = count
 
     def searchBuffer(self):
+        time.sleep(4)
         if self.buffer == "":
             return
         lines = []
@@ -63,15 +67,23 @@ class RapidReader():
                     if sense.parts_of_speech[0] !=  "Wikipedia definition":
                         lines.append("; ".join([ english for english in sense.english_definitions ]))
 
+        startOffset = 3
         lineOffset = 3
         for line in lines:
             self.window.move(lineOffset,0)
             self.window.clrtoeol()
             self.window.addstr(line)
+
+            p = Popen(self.config["copy"], stdout=PIPE, stdin=PIPE, stderr=PIPE)
+            p.communicate(input=line.encode())
+            pyautogui.hotkey("ctrl","v")
+            if lineOffset-startOffset < len(lines)-1:
+                pyautogui.press("tab")
+
             lineOffset += 1
 
-        p = Popen(self.config["copy"], stdout=PIPE, stdin=PIPE, stderr=PIPE)
-        p.communicate(input="\n".join(lines).encode())
+        pyautogui.hotkey("shift","tab")
+        pyautogui.press("enter")
 
         p = Popen(
             list(map(lambda x: x % self.buffer if "%s" in x else x, self.config["open"])),
@@ -142,4 +154,5 @@ class RapidReader():
                 pass
 
 if __name__ == "__main__":
-    curses.wrapper(RapidReader().handle)
+    line = sys.argv[1] if len(sys.argv) > 1 else ""
+    curses.wrapper(RapidReader(line).handle)

@@ -13,14 +13,13 @@
     },
     "Linux": {
         "copy": [
-            "ssh",
-            "hollyhock",
-            "DISPLAY=:0 xsel --clipboard --input"
+            "xsel",
+            "--clipboard",
+            "--input"
         ],
         "open": [
-            "ssh",
-            "hollyhock",
-            "DISPLAY=:0 open \"https://www.google.com/search?tbm=isch&q=%s\""
+            "open",
+            "https://www.google.com/search?tbm=isch&q=%s"
         ]
     }
 }
