@@ -76,7 +76,9 @@ class RapidReader():
 
             p = Popen(self.config["copy"], stdout=PIPE, stdin=PIPE, stderr=PIPE)
             p.communicate(input=line.encode())
+            time.sleep(0.2)
             pyautogui.hotkey("ctrl","v")
+            time.sleep(0.1)
             if lineOffset-startOffset < 2:
                 pyautogui.press("tab")
             else:
