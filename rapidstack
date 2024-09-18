@@ -1,0 +1,104 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+"""
+Search for Japanese words for flashcards crazy fast.
+"""
+
+import curses
+import sys
+import json
+import time
+import os
+import platform
+from subprocess import Popen, PIPE
+from jisho_api.word import Word
+import pyautogui
+from boltons.setutils import IndexedSet
+
+def searchWord(config, buffer):
+    time.sleep(4)
+    lines = []
+    for word in Word.request(buffer).data:
+        if word.slug == buffer:
+            lines.append(buffer)
+            lines.append(", ".join([ japanese.reading for japanese in word.japanese if japanese.word == buffer ]))
+            for sense in word.senses:
+                if sense.parts_of_speech[0] !=  "Wikipedia definition":
+                    lines.append("; ".join([ english for english in sense.english_definitions ]))
+
+    if len(lines) == 0:
+        raise Exception("Word not found!")
+
+    startOffset = 3
+    lineOffset = 3
+    for line in lines:
+
+        p = Popen(config["copy"], stdout=PIPE, stdin=PIPE, stderr=PIPE)
+        p.communicate(input=line.encode())
+        time.sleep(0.2)
+        pyautogui.hotkey("ctrl","v")
+        time.sleep(0.1)
+        if lineOffset-startOffset < 2:
+            pyautogui.press("tab")
+        else:
+            if lineOffset-startOffset < len(lines)-1:
+                pyautogui.press("enter")
+
+        lineOffset += 1
+
+    pyautogui.hotkey("shift","tab")
+    pyautogui.press("enter")
+
+def showRemainingWords(window, words: list):
+    rows, _ = window.getmaxyx()
+    maxItemsShown = min(rows, len(words))
+    for rowNumber in range(0,maxItemsShown):
+        window.move(rowNumber, 0)
+        window.clrtoeol()
+        window.addstr(words[rowNumber])
+        window.move(rowNumber+1, 0)
+        window.clrtoeol()
+    window.move(maxItemsShown, 0)
+
+def whileWordsExist(window, words: list, config):
+    showRemainingWords(window, words)
+    while ord(window.get_wch()) != 10:
+        window.refresh()
+    window.move(0, 0)
+    window.clrtoeol()
+    window.addstr("** " + words[0])
+    window.refresh()
+    searchWord(config, words[0])
+    while ord(window.get_wch()) != 10:
+        window.refresh()
+    redoList(words[0])
+    if len(words) > 1:
+        whileWordsExist(window, words[1:], config)
+
+def handle(wordsSet: list, config):
+    words = list(wordsSet)
+    def windowHandler(window):
+        nonlocal words
+        whileWordsExist(window, words, config)
+    return windowHandler
+
+def redoList(newWord: str):
+    file = os.path.join(os.path.dirname(__file__), "list.json")
+    with open(file,"r") as rfp:
+        config = json.load(rfp)
+        with open(file+".new","w") as wfp:
+            config.update( { "words": config["words"] + [newWord] } )
+            wfp.write(json.dumps(config))
+    os.replace(file+".new", file)
+
+if __name__ == "__main__":
+    with open("config.json", "r") as config:
+        config = json.load(config)[platform.uname().system]
+    rfp = open(os.path.join(os.path.dirname(__file__), "list.json"),"r")
+    oldWords = IndexedSet(json.load(rfp)["words"])
+    rfp.close()
+    words = IndexedSet(list(map(lambda x: x.strip(), (sys.argv[1] if len(sys.argv) > 1 else "").split(","))))
+    studyWords = words - oldWords
+    if len(studyWords) != 0:
+        curses.wrapper(handle(list(studyWords), config))
+    print("All words completed")
