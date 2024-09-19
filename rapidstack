@@ -48,10 +48,17 @@ def searchWord(config, buffer):
 
     pyautogui.hotkey("shift","tab")
     pyautogui.press("enter")
+    p = Popen(
+        list(map(lambda x: x % buffer if "%s" in x else x, config["open"])),
+        stdout=PIPE,
+        stdin=PIPE,
+        stderr=PIPE
+    )
+    p.communicate(input="\n".join(lines).encode())
 
 def showRemainingWords(window, words: list):
     rows, _ = window.getmaxyx()
-    maxItemsShown = min(rows, len(words))
+    maxItemsShown = min(rows-1, len(words))
     for rowNumber in range(0,maxItemsShown):
         window.move(rowNumber, 0)
         window.clrtoeol()
