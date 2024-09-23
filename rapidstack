@@ -69,16 +69,23 @@ def showRemainingWords(window, words: list):
 
 def whileWordsExist(window, words: list, config):
     showRemainingWords(window, words)
-    while ord(window.get_wch()) != 10:
-        window.refresh()
-    window.move(0, 0)
-    window.clrtoeol()
-    window.addstr("** " + words[0])
-    window.refresh()
-    searchWord(config, words[0])
-    while ord(window.get_wch()) != 10:
-        window.refresh()
-    redoList(words[0])
+    while True:
+        match ord(window.get_wch()):
+            case 10: # enter
+                window.move(0, 0)
+                window.clrtoeol()
+                window.addstr("** " + words[0])
+                window.refresh()
+                searchWord(config, words[0])
+                while ord(window.get_wch()) != 10:
+                    window.refresh()
+                redoList(words[0])
+                break
+            case 115: # s
+                break
+            case _:
+                window.refresh()
+                continue
     if len(words) > 1:
         whileWordsExist(window, words[1:], config)
 
