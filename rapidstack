@@ -111,7 +111,17 @@ if __name__ == "__main__":
     rfp = open(os.path.join(os.path.dirname(__file__), "list.json"),"r")
     oldWords = IndexedSet(json.load(rfp)["words"])
     rfp.close()
-    words = IndexedSet(list(map(lambda x: x.strip(), (sys.argv[1] if len(sys.argv) > 1 else "").split(","))))
+    wordsFromCli = (sys.argv[1] if len(sys.argv) > 1 else "").split(",")
+    filterFromCli = (sys.argv[2] if len(sys.argv) > 2 else None)
+    print(filterFromCli)
+    words = IndexedSet(
+        list(
+            filter(
+                lambda x: True if filterFromCli is None else (filterFromCli in x),
+                map( lambda x: x.strip(), wordsFromCli)
+            )
+        )
+    )
     studyWords = words - oldWords
     if len(studyWords) != 0:
         curses.wrapper(handle(list(studyWords), config))
